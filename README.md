@@ -43,7 +43,7 @@
 2. Клонируйте репозиторий (или скопируйте файлы приложения к себе на сервер):
 
    ```bash
-   git clone https://github.com/your-username/nginx-manager.git
+   git clone https://github.com/dazatar1994/nginx-manager.git
    ```
 
 3. Перейдите в директорию проекта и установите зависимости:
