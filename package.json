@@ -1,0 +1,25 @@
+{
+	"name": "nginx_manager",
+	"version": "1.0.0",
+	"description": "Интерактивный менеджер для настройки и управления Nginx.",
+	"main": "nginx_manager.js",
+	"scripts": {
+	  "start": "node nginx_manager.js"
+	},
+	"keywords": [
+	  "nginx",
+	  "manager",
+	  "load-balancer",
+	  "ssl",
+	  "gitlab-ci",
+	  "optimization"
+	],
+	"author": "Ваше Имя",
+	"license": "MIT",
+	"dependencies": {
+	  "chalk": "^5.2.0",
+	  "figlet": "^1.5.2",
+	  "inquirer": "^9.2.3"
+	}
+  }
+  
