@@ -14,7 +14,7 @@
 	  "gitlab-ci",
 	  "optimization"
 	],
-	"author": "Ваше Имя",
+	"author": "Немцов Сергей",
 	"license": "MIT",
 	"dependencies": {
 	  "chalk": "^5.2.0",
