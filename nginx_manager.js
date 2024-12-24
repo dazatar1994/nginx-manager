@@ -36,7 +36,7 @@ function backupNginxConfigs() {
   console.log(chalk.green(`Резервная копия создана: ${backupPath}`));
 }
 
-// Установить SSL через Let's Encrypt
+// Установить SSL через Let's Encrypt (вызывается внутри configureNginx)
 async function setupLetsEncrypt(serverName) {
   console.log(chalk.cyan('Устанавливаем Certbot для автоматической настройки SSL...'));
   executeCommand('sudo apt update');
@@ -45,6 +45,61 @@ async function setupLetsEncrypt(serverName) {
   console.log(chalk.cyan(`Настраиваем SSL для ${serverName}...`));
   executeCommand(`sudo certbot --nginx -d ${serverName}`);
   console.log(chalk.green('SSL успешно настроен.'));
+}
+
+// Настройка Nginx (примерная логика)
+async function configureNginx() {
+  // Спросим у пользователя, нужен ли ему SSL и домен
+  const answers = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'needSSL',
+      message: 'Хотите настроить SSL через Let\'s Encrypt?',
+      default: true,
+    },
+    {
+      type: 'input',
+      name: 'serverName',
+      message: 'Укажите ваш домен (например, example.com):',
+      when: (ans) => ans.needSSL,
+    },
+  ]);
+
+  // Пример настройки Nginx (можно расширить)
+  console.log(chalk.cyan('Проверяем синтаксис Nginx...'));
+  executeCommand('sudo nginx -t');
+
+  // Применим изменения (если какие-то были)
+  console.log(chalk.cyan('Перезапускаем Nginx...'));
+  executeCommand('sudo systemctl reload nginx');
+
+  // Если пользователь хочет настроить SSL
+  if (answers.needSSL && answers.serverName) {
+    await setupLetsEncrypt(answers.serverName);
+  } else {
+    console.log(chalk.green('Настройка Nginx завершена без SSL.'));
+  }
+}
+
+// Пример настройки Firewall (UFW)
+function setupFirewall() {
+  console.log(chalk.cyan('Настраиваем firewall (UFW)...'));
+  // Проверим, установлен ли ufw
+  executeCommand('sudo apt-get update');
+  executeCommand('sudo apt-get install -y ufw');
+
+  // Разрешим нужные порты
+  executeCommand('sudo ufw allow 22');   // SSH (пример)
+  executeCommand('sudo ufw allow 80');   // HTTP
+  executeCommand('sudo ufw allow 443');  // HTTPS
+
+  // Включим ufw
+  try {
+    executeCommand('sudo ufw enable');
+  } catch (error) {
+    console.log(chalk.yellow('UFW, возможно, уже включён или требует дополнительной настройки.'));
+  }
+  console.log(chalk.green('Firewall (UFW) настроен.'));
 }
 
 // Генерация конфигурации для Load Balancer
@@ -64,7 +119,7 @@ async function configureLoadBalancer() {
   ]);
 
   const upstreamConfig = `upstream ${answers.upstreamName} {
-${answers.serverList.split(',').map(server => `  server ${server};`).join('\n')}
+${answers.serverList.split(',').map(server => `  server ${server.trim()};`).join('\n')}
 }`;
 
   const loadBalancerConfig = `
@@ -85,6 +140,107 @@ server {
   executeCommand('sudo nginx -t');
   executeCommand('sudo systemctl reload nginx');
   console.log(chalk.green('Конфигурация Load Balancer успешно применена.'));
+}
+
+// Пример оптимизации Nginx (минимальный)
+function optimizeNginx() {
+  console.log(chalk.cyan('Оптимизируем Nginx...'));
+  // Можно, например, внести правки в /etc/nginx/nginx.conf
+  // Ниже лишь пример (общепринятые настройки)
+  const optimizationConfig = `
+worker_processes auto;
+events {
+  worker_connections 1024;
+}
+http {
+  sendfile on;
+  tcp_nopush on;
+  tcp_nodelay on;
+  keepalive_timeout 65;
+  types_hash_max_size 2048;
+
+  # Дополнительные настройки...
+  include /etc/nginx/conf.d/*.conf;
+}
+`;
+
+  // Сохраним старый nginx.conf и запишем новый
+  executeCommand('sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup');
+  fs.writeFileSync('/tmp/nginx.conf', optimizationConfig); // Запишем во временный файл
+  executeCommand('sudo mv /tmp/nginx.conf /etc/nginx/nginx.conf');
+
+  console.log(chalk.cyan('Проверяем синтаксис Nginx...'));
+  executeCommand('sudo nginx -t');
+
+  console.log(chalk.cyan('Применяем изменения...'));
+  executeCommand('sudo systemctl reload nginx');
+  console.log(chalk.green('Оптимизация завершена.'));
+}
+
+// Пример диагностики ошибок
+function diagnoseErrors() {
+  console.log(chalk.cyan('Проводим диагностику...'));
+
+  // Проверим синтаксис
+  console.log(chalk.cyan('1) Проверяем синтаксис Nginx...'));
+  executeCommand('sudo nginx -t');
+
+  // Посмотрим последние 20 строк логов (пример)
+  console.log(chalk.cyan('2) Последние 20 строк error.log:'));
+  try {
+    const logs = execSync('sudo tail -n 20 /var/log/nginx/error.log');
+    console.log(logs.toString());
+  } catch (error) {
+    console.log(chalk.yellow('Не удалось прочитать /var/log/nginx/error.log.'));
+  }
+
+  console.log(chalk.green('Диагностика завершена.'));
+}
+
+// Пример настройки GitLab CI/CD
+async function setupGitlabCI() {
+  // Спросим у пользователя какие-нибудь параметры
+  const answers = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'gitlabProjectUrl',
+      message: 'Введите URL проекта в GitLab:',
+    },
+    {
+      type: 'input',
+      name: 'branch',
+      message: 'Введите ветку для CI/CD (например, main):',
+      default: 'main',
+    },
+  ]);
+
+  console.log(chalk.cyan('Настраиваем GitLab CI/CD...'));
+  // Примерная логика: создаём .gitlab-ci.yml
+  const ciContent = `
+image: node:latest
+
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  script:
+    - echo "Build stage..."
+
+test:
+  stage: test
+  script:
+    - echo "Test stage..."
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploy stage..."
+`;
+  fs.writeFileSync('.gitlab-ci.yml', ciContent);
+  console.log(chalk.green(`Файл .gitlab-ci.yml создан. Загрузите его в репозиторий ${answers.gitlabProjectUrl} (ветка ${answers.branch}).`));
 }
 
 // Генерация Docker Compose
@@ -116,7 +272,7 @@ services:
     image: ${answers.nginxImage}
     container_name: ${answers.projectName}_nginx
     ports:
-${answers.ports.split(',').map(port => `      - "${port}"`).join('\n')}
+${answers.ports.split(',').map(port => `      - "${port.trim()}"`).join('\n')}
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
 `;
@@ -125,7 +281,7 @@ ${answers.ports.split(',').map(port => `      - "${port}"`).join('\n')}
   console.log(chalk.green('Файл docker-compose.yml успешно создан.'));
 }
 
-// Интерактивная справка
+// Команда help
 function displayHelp() {
   console.log(chalk.blue(figlet.textSync('Nginx Manager Help')));
   console.log(`
@@ -145,6 +301,26 @@ ${chalk.cyan('Доступные команды:')}
 12. get status Nginx - Проверить статус Nginx.
 13. exit - Выйти из программы.
 `);
+}
+
+// Запустить Nginx
+function startNginx() {
+  console.log(chalk.cyan('Запускаем Nginx...'));
+  executeCommand('sudo systemctl start nginx');
+  console.log(chalk.green('Nginx запущен.'));
+}
+
+// Остановить Nginx
+function stopNginx() {
+  console.log(chalk.cyan('Останавливаем Nginx...'));
+  executeCommand('sudo systemctl stop nginx');
+  console.log(chalk.green('Nginx остановлен.'));
+}
+
+// Проверить статус Nginx
+function nginxStatus() {
+  console.log(chalk.cyan('Проверяем статус Nginx...'));
+  executeCommand('sudo systemctl status nginx');
 }
 
 // Главное меню
